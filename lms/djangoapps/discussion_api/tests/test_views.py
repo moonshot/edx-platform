@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 from urlparse import urlparse
 
+import ddt
 import httpretty
 import mock
 from pytz import UTC
@@ -134,6 +135,7 @@ class CourseTopicsViewTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
         )
 
 
+@ddt.ddt
 @httpretty.activate
 class ThreadViewSetListTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
     """Tests for ThreadViewSet list"""
@@ -222,6 +224,7 @@ class ThreadViewSetListTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
             }
         )
         self.assert_last_query_params({
+            "user_id": [unicode(self.user.id)],
             "course_id": [unicode(self.course.id)],
             "sort_key": ["date"],
             "sort_order": ["desc"],
@@ -243,6 +246,7 @@ class ThreadViewSetListTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
             {"developer_message": "Not found."}
         )
         self.assert_last_query_params({
+            "user_id": [unicode(self.user.id)],
             "course_id": [unicode(self.course.id)],
             "sort_key": ["date"],
             "sort_order": ["desc"],
@@ -264,6 +268,7 @@ class ThreadViewSetListTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
             {"results": [], "next": None, "previous": None, "text_search_rewrite": None}
         )
         self.assert_last_query_params({
+            "user_id": [unicode(self.user.id)],
             "course_id": [unicode(self.course.id)],
             "sort_key": ["date"],
             "sort_order": ["desc"],
@@ -294,6 +299,62 @@ class ThreadViewSetListTest(DiscussionAPIViewTestMixin, ModuleStoreTestCase):
             urlparse(httpretty.last_request().path).path,
             "/api/v1/users/{}/subscribed_threads".format(self.user.id)
         )
+
+    @ddt.data(
+        ("last_activity_at", "date"),
+        ("comment_count", "comments"),
+        ("vote_count", "votes")
+    )
+    @ddt.unpack
+    def test_order_by(self, http_query, cc_query):
+        """
+        Tests the order_by parameter
+
+        Arguments:
+            http_query (str): Query string sent in the http request
+            cc_query (str): Query string used for the comments client service
+        """
+        threads = [make_minimal_cs_thread()]
+        self.register_get_user_response(self.user)
+        self.register_get_threads_response(threads, page=1, num_pages=1)
+        self.client.get(
+            self.url,
+            {
+                "course_id": unicode(self.course.id),
+                "order_by": http_query,
+            }
+        )
+        self.assert_last_query_params({
+            "user_id": [unicode(self.user.id)],
+            "course_id": [unicode(self.course.id)],
+            "sort_order": ["desc"],
+            "recursive": ["False"],
+            "page": ["1"],
+            "per_page": ["10"],
+            "sort_key": [cc_query],
+        })
+
+    @ddt.data("asc", "desc")
+    def test_order_direction(self, query):
+        threads = [make_minimal_cs_thread()]
+        self.register_get_user_response(self.user)
+        self.register_get_threads_response(threads, page=1, num_pages=1)
+        self.client.get(
+            self.url,
+            {
+                "course_id": unicode(self.course.id),
+                "order_direction": query,
+            }
+        )
+        self.assert_last_query_params({
+            "user_id": [unicode(self.user.id)],
+            "course_id": [unicode(self.course.id)],
+            "sort_key": ["date"],
+            "recursive": ["False"],
+            "page": ["1"],
+            "per_page": ["10"],
+            "sort_order": [query],
+        })
 
 
 @httpretty.activate
