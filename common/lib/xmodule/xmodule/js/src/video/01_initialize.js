@@ -16,6 +16,8 @@ define(
 'video/01_initialize.js',
 ['video/03_video_player.js', 'video/00_video_storage.js', 'video/00_i18n.js'],
 function (VideoPlayer, VideoStorage, i18n) {
+    var moment = window.moment;
+
     /**
      * @function
      *
@@ -31,6 +33,9 @@ function (VideoPlayer, VideoStorage, i18n) {
 
         state.initialize(element)
             .done(function () {
+                if (state.isYoutubeType() && !state.speeds) {
+                    state.parseSpeed();
+                }
                 // On iPhones and iPods native controls are used.
                 if (/iP(hone|od)/i.test(state.isTouch[0])) {
                     _hideWaitPlaceholder(state);
@@ -76,7 +81,10 @@ function (VideoPlayer, VideoStorage, i18n) {
         setSpeed: setSpeed,
         speedToString: speedToString,
         trigger: trigger,
-        youtubeId: youtubeId
+        youtubeId: youtubeId,
+        loadHtmlPlayer: loadHtmlPlayer,
+        loadYoutubePlayer: loadYoutubePlayer,
+        loadYouTubeIFrameAPI: loadYouTubeIFrameAPI
     },
 
         _youtubeApiDeferred = null,
@@ -179,7 +187,6 @@ function (VideoPlayer, VideoStorage, i18n) {
                 if (!_youtubeApiDeferred) {
                     _youtubeApiDeferred = $.Deferred();
                     setupOnYouTubeIframeAPIReady();
-                    _loadYoutubeApi(state);
                 } else if (!window.onYouTubeIframeAPIReady || !window.onYouTubeIframeAPIReady.done) {
                     // The Deferred object could have been already defined in a previous
                     // initialization of the video module. However, since then the global variable
@@ -204,7 +211,7 @@ function (VideoPlayer, VideoStorage, i18n) {
         }
     }
 
-    function _loadYoutubeApi(state) {
+    function _waitForYoutubeApi(state) {
         console.log('[Video info]: YouTube API is not loaded. Will try to load...');
 
         window.setTimeout(function () {
@@ -215,7 +222,11 @@ function (VideoPlayer, VideoStorage, i18n) {
             _reportToServer(state, state.youtubeApiAvailable);
         }, state.config.ytTestTimeout);
 
-        $.getScript(document.location.protocol + '//' + state.config.ytApiUrl);
+    }
+
+    function loadYouTubeIFrameAPI(scriptTag) {
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(scriptTag, firstScriptTag);
     }
 
     function _reportToServer(state, youtubeIsAvailable) {
@@ -458,6 +469,52 @@ function (VideoPlayer, VideoStorage, i18n) {
         });
     }
 
+    function loadYoutubePlayer() {
+        console.log(
+            '[Video info]: Start player in YouTube mode.'
+        );
+
+        this.fetchMetadata();
+        this.parseSpeed();
+    }
+
+    function loadHtmlPlayer() {
+        console.log(
+            '[Video info]: YouTube returned an error for ' +
+            'video with id "' + this.id + '".'
+        );
+
+        // When the youtube link doesn't work for any reason
+        // (for example, firewall) any
+        // alternate sources should automatically play.
+        if (!_prepareHTML5Video(this)) {
+            console.log(
+                '[Video info]: Continue loading ' +
+                'YouTube video.'
+            );
+
+            // Non-YouTube sources were not found either.
+
+            this.el.find('.video-player div')
+                .removeClass('hidden');
+            this.el.find('.video-player h3')
+                .addClass('hidden');
+
+            // If in reality the timeout was to short, try to
+            // continue loading the YouTube video anyways.
+            this.loadYoutubePlayer();
+        } else {
+            console.log(
+                '[Video info]: Change player mode to HTML5.'
+            );
+
+            // In-browser HTML5 player does not support quality
+            // control.
+            this.el.find('a.quality_control').hide();
+            _renderElements(this);
+        }
+    }
+
     // function initialize(element)
     // The function set initial configuration and preparation.
 
@@ -494,7 +551,7 @@ function (VideoPlayer, VideoStorage, i18n) {
         // jQuery .data() return object with keys in lower camelCase format.
         this.config = $.extend({}, _getConfiguration(el.data(), storage), {
             element: element,
-            fadeOutTimeout:     1400,
+            fadeOutTimeout: 1400,
             captionsFreezeTime: 10000,
             mode: $.cookie('edX_video_player_mode'),
             // Available HD qualities will only be accessible once the video has
@@ -511,6 +568,8 @@ function (VideoPlayer, VideoStorage, i18n) {
             this.config.speed || this.config.generalSpeed
         );
 
+        _setConfigurations(this);
+
         if (!(_parseYouTubeIDs(this))) {
 
             // If we do not have YouTube ID's, try parsing HTML5 video sources.
@@ -522,70 +581,26 @@ function (VideoPlayer, VideoStorage, i18n) {
             }
 
             console.log('[Video info]: Start player in HTML5 mode.');
-
-            _setConfigurations(this);
             _renderElements(this);
         } else {
-            if (!this.youtubeXhr) {
-                this.youtubeXhr = this.getVideoMetadata();
-            }
+            _renderElements(this);
 
-            this.youtubeXhr
-                .always(function (json, status) {
-                    var err = $.isPlainObject(json.error) ||
-                                (
-                                    status !== 'success' &&
-                                    status !== 'notmodified'
-                                );
-                    if (err) {
-                        console.log(
-                            '[Video info]: YouTube returned an error for ' +
-                            'video with id "' + id + '".'
-                        );
+            _waitForYoutubeApi(this);
 
-                        // When the youtube link doesn't work for any reason
-                        // (for example, the great firewall in china) any
-                        // alternate sources should automatically play.
-                        if (!_prepareHTML5Video(self)) {
-                            console.log(
-                                '[Video info]: Continue loading ' +
-                                'YouTube video.'
-                            );
+            var scriptTag = document.createElement('script');
 
-                            // Non-YouTube sources were not found either.
+            scriptTag.src = this.config.ytApiUrl;
+            scriptTag.async = true;
 
-                            el.find('.video-player div')
-                                .removeClass('hidden');
-                            el.find('.video-player h3')
-                                .addClass('hidden');
+            $(scriptTag).on('load', function() {
+                self.loadYoutubePlayer();
+            });
+            $(scriptTag).on('error', function() {
+                self.loadHtmlPlayer();
+            });
 
-                            // If in reality the timeout was to short, try to
-                            // continue loading the YouTube video anyways.
-                            self.fetchMetadata();
-                            self.parseSpeed();
-                        } else {
-                            console.log(
-                                '[Video info]: Change player mode to HTML5.'
-                            );
-
-                            // In-browser HTML5 player does not support quality
-                            // control.
-                            el.find('a.quality_control').hide();
-                        }
-                    } else {
-                        console.log(
-                            '[Video info]: Start player in YouTube mode.'
-                        );
-
-                        self.fetchMetadata();
-                        self.parseSpeed();
-                    }
-
-                    _setConfigurations(self);
-                    _renderElements(self);
-                });
+            window.Video.loadYouTubeIFrameAPI(scriptTag);
         }
-
         return __dfd__.promise();
     }
 
@@ -633,19 +648,18 @@ function (VideoPlayer, VideoStorage, i18n) {
     //     example the length of the video can be determined from the meta
     //     data.
     function fetchMetadata() {
-        var _this = this,
+        var self = this,
             metadataXHRs = [];
 
         this.metadata = {};
 
-        $.each(this.videos, function (speed, url) {
-            var xhr = _this.getVideoMetadata(url, function (data) {
-                if (data.data) {
-                    _this.metadata[data.data.id] = data.data;
+        metadataXHRs = _.map(this.videos, function (url, speed) {
+            return self.getVideoMetadata(url, function (data) {
+                if (data.items.length > 0) {
+                    var metaDataItem = data.items[0];
+                    self.metadata[metaDataItem.id] = metaDataItem.contentDetails;
                 }
             });
-
-            metadataXHRs.push(xhr);
         });
 
         $.when.apply(this, metadataXHRs).done(function () {
@@ -705,11 +719,7 @@ function (VideoPlayer, VideoStorage, i18n) {
         }
         successHandler = ($.isFunction(callback)) ? callback : null;
         xhr = $.ajax({
-            url: [
-                document.location.protocol, '//', this.config.ytTestUrl, url,
-                '?v=2&alt=jsonc'
-            ].join(''),
-            dataType: 'jsonp',
+            url: [this.config.ytTestUrl, '?id=', url, '&part=contentDetails&key=', this.config.ytKey].join(''),
             timeout: this.config.ytTestTimeout,
             success: successHandler
         });
@@ -754,7 +764,7 @@ function (VideoPlayer, VideoStorage, i18n) {
 
     function getDuration() {
         try {
-            return this.metadata[this.youtubeId()].duration;
+            return moment.duration(this.metadata[this.youtubeId()].duration, moment.ISO_8601).asSeconds();
         } catch (err) {
             return _.result(this.metadata[this.youtubeId('1.0')], 'duration') || 0;
         }

@@ -83,6 +83,11 @@ FEATURES['MILESTONES_APP'] = True
 ################################ ENTRANCE EXAMS ################################
 FEATURES['ENTRANCE_EXAMS'] = True
 
+XBLOCK_SETTINGS = {
+    'VideoModule': {
+        'YOUTUBE_API_KEY': 'YOUTUBE_API_TEST_KEY'
+    }
+}
 
 ###############################################################################
 # See if the developer has any local overrides.
