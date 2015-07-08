@@ -50,6 +50,7 @@
             "URI": "js/vendor/URI.min",
             "string_utils": "js/src/string_utils",
             "utility": "js/src/utility",
+            "tinymce": "js/vendor/tinymce/js/tinymce/tinymce.full.min",
 
             // Files needed by OVA
             "annotator": "js/vendor/ova/annotator-full",
