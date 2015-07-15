@@ -98,11 +98,12 @@ def get_course_with_access(user, action, course_key, depth=0, check_if_enrolled=
     """
     assert isinstance(course_key, CourseKey)
     course = get_course_by_id(course_key, depth=depth)
+    access_response = has_access(user, action, course, course_key)
 
-    if not has_access(user, action, course, course_key):
+    if not access_response:
         # Deliberately return a non-specific error message to avoid
         # leaking info about access control settings
-        raise Http404("Course not found.")
+        raise Http404(access_response.error_code)
 
     if check_if_enrolled:
         # Verify that the user is either enrolled in the course or a staff member.

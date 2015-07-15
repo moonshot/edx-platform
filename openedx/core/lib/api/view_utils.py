@@ -104,16 +104,8 @@ def view_course_access(depth=0, access_action='load', check_for_milestones=False
                         depth=depth,
                         check_if_enrolled=True,
                     )
-                except Http404:
-                    # any_unfulfilled_milestones called a second time since has_access returns a bool
-                    if check_for_milestones and any_unfulfilled_milestones(course_id, request.user.id):
-                        message = {
-                            "developer_message": "Cannot access content with unfulfilled "
-                                                 "pre-requisites or unpassed entrance exam."
-                        }
-                        return response.Response(data=message, status=status.HTTP_204_NO_CONTENT)
-                    else:
-                        raise
+                except Http404 as error:
+                    return response.Response(data=error.message, status=status.HTTP_204_NO_CONTENT)
                 return func(self, request, course=course, *args, **kwargs)
         return _wrapper
     return _decorator
