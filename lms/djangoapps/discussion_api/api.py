@@ -7,7 +7,7 @@ from urlparse import urlunparse
 
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
-from django.http import Http404
+from django.http import Http404, HttpResponseBadRequest
 
 from rest_framework.exceptions import PermissionDenied
 
@@ -278,6 +278,15 @@ def get_thread_list(
     if exclusive_param_count > 1:  # pragma: no cover
         raise ValueError("More than one mutually exclusive param passed to get_thread_list")
 
+    # These should already be validated by the django forms.
+    if order_by:
+        cc_map = {"last_activity_at": "date", "comment_count": "comments", "vote_count": "votes"}
+        if order_by not in cc_map:
+            raise HttpResponseBadRequest("Invalid value for order_by: {}".format(order_by))  # pylint: disable=raising-non-exception
+        order_by = cc_map.get(order_by)
+    if order_direction and order_direction not in ["asc", "desc"]:
+        raise HttpResponseBadRequest("Invalid value for order_direction: {}".format(order_by))  # pylint: disable=raising-non-exception
+
     course = _get_course_or_404(course_key, request.user)
     context = get_context(course, request)
 
@@ -292,8 +301,7 @@ def get_thread_list(
         "text": text_search,
     }
 
-    cc_map = {"last_activity_at": "date", "comment_count": "comments", "vote_count": "votes"}
-    query_params["sort_key"] = cc_map.get(order_by) or "date"
+    query_params["sort_key"] = order_by or "date"
     query_params["sort_order"] = order_direction or "desc"
 
     text_search_rewrite = None
