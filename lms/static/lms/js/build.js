@@ -63,6 +63,7 @@
             'logger': 'empty:',
             'utility': 'empty:',
             'URI': 'empty:',
+            'DiscussionModuleView': 'empty:'
         },
 
         /**

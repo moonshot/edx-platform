@@ -2,8 +2,9 @@ define([
     'jquery',
     'backbone',
     'common/js/spec_helpers/ajax_helpers',
-    'teams/js/views/teams_tab'
-], function ($, Backbone, AjaxHelpers, TeamsTabView) {
+    'teams/js/views/teams_tab',
+    'URI'
+], function ($, Backbone, AjaxHelpers, TeamsTabView, URI) {
     'use strict';
 
     describe('TeamsTab', function () {
@@ -34,10 +35,10 @@ define([
                         team_count: 0
                     }]
                 },
-                topic_url: 'api/topics/topic_id,course_id',
-                topics_url: 'topics_url',
-                teams_url: 'teams_url',
-                course_id: 'test/course/id'
+                topicUrl: 'api/topics/topic_id,course_id',
+                topicsUrl: 'topics_url',
+                teamsUrl: 'teams_url',
+                courseId: 'test/course/id'
             }).render();
             Backbone.history.start();
         });
