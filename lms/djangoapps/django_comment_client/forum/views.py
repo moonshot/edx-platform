@@ -279,8 +279,8 @@ def forum_form_discussion(request, course_key):
             'can_create_comment': _attr_safe_json(
                 has_permission(request.user, "create_comment", course.id)),
             'can_create_subcomment': _attr_safe_json(
-                cached_has_permission(request.user, "create_sub_comment", course.id)),
-            'can_create_thread': cached_has_permission(request.user, "create_thread", course.id),
+                has_permission(request.user, "create_sub_comment", course.id)),
+            'can_create_thread': has_permission(request.user, "create_thread", course.id),
             'flag_moderator': bool(
                 has_permission(request.user, 'openclose_thread', course.id) or
                 has_access(request.user, 'staff', course)
