@@ -282,10 +282,9 @@ def get_thread_list(
     if order_by:
         cc_map = {"last_activity_at": "date", "comment_count": "comments", "vote_count": "votes"}
         if order_by not in cc_map:
-            raise HttpResponseBadRequest("Invalid value for order_by: {}".format(order_by))  # pylint: disable=raising-non-exception
-        order_by = cc_map.get(order_by)
+            raise ValidationError({"order_by": ["Invalid value"]})  # pylint: disable=raising-non-exception
     if order_direction and order_direction not in ["asc", "desc"]:
-        raise HttpResponseBadRequest("Invalid value for order_direction: {}".format(order_by))  # pylint: disable=raising-non-exception
+        raise ValidationError({"order_direction": ["Invalid value"]})  # pylint: disable=raising-non-exception
 
     course = _get_course_or_404(course_key, request.user)
     context = get_context(course, request)
@@ -301,7 +300,7 @@ def get_thread_list(
         "text": text_search,
     }
 
-    query_params["sort_key"] = order_by or "date"
+    query_params["sort_key"] = cc_map.get(order_by) or "date"
     query_params["sort_order"] = order_direction or "desc"
 
     text_search_rewrite = None
