@@ -23,7 +23,7 @@ define(['jquery', 'backbone', 'gettext'], function ($, Backbone, gettext) {
         },
 
         doSearch: function (term) {
-            if (term) {
+            if (term !== undefined) {
                 this.$searchField.val(term);
             }
             else {
