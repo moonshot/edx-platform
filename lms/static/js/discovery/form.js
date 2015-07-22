@@ -7,7 +7,7 @@ define(['jquery', 'backbone', 'gettext'], function ($, Backbone, gettext) {
 
         el: '#discovery-form',
         events: {
-            'submit form': 'submitForm',
+            'submit form': 'submitForm'
         },
 
         initialize: function () {
