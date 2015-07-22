@@ -5,15 +5,17 @@ define([
     'common/js/spec_helpers/ajax_helpers',
     'common/js/spec_helpers/template_helpers',
     'js/discovery/discovery_factory',
-    'js/discovery/collection',
     'js/discovery/views/search_form',
     'js/discovery/models/course_card',
     'js/discovery/views/course_card',
     'js/discovery/views/courses_listing',
     'js/discovery/models/filter',
+    'js/discovery/models/facet_option',
+    'js/discovery/models/course_discovery',
+    'js/discovery/models/search_state',
     'js/discovery/collections/filters',
     'js/discovery/views/filter_bar',
-    'js/discovery/views/filter_labels',
+    'js/discovery/views/filter_label',
     'js/discovery/views/refine_sidebar'
 ], function(
     $,
@@ -22,15 +24,17 @@ define([
     AjaxHelpers,
     TemplateHelpers,
     DiscoveryFactory,
-    Collection,
     SearchForm,
     CourseCard,
     CourseCardView,
-    CouresListing,
-    FilterModel,
-    FiltersCollection,
-    FiltersBarView,
-    FilterView,
+    CoursesListing,
+    Filter,
+    FacetOption,
+    CourseDiscovery,
+    SearchState,
+    Filters,
+    FilterBar,
+    FilterLabel,
     RefineSidebar
 ) {
     'use strict';
@@ -101,153 +105,390 @@ define([
         }
     };
 
-    var FACET_LIST = [
-        {"type": "example1", "query": "search1"},
-        {"type": "example2", "query": "search2"}
-    ];
-
-    var SEARCH_FILTER = {"type": "search_string", "query": "search3"};
+    var MEANINGS = {
+        org: {
+            name: 'Organization',
+            terms: {
+                edX1: "edX_1"
+            }
+        },
+        modes: {
+            name: 'Course Type',
+            terms: {
+                honor: 'Honor',
+                verified: 'Verified'
+            }
+        },
+        language: {
+            terms: {
+                en: 'English',
+                hr: 'Croatian'
+            }
+        }
+    }
 
 
     describe('Course Discovery', function () {
 
-        describe('Collection', function () {
+
+        describe('models.Filter', function () {
 
             beforeEach(function () {
-                this.collection = new Collection();
-
-                this.onSearch = jasmine.createSpy('onSearch');
-                this.collection.on('search', this.onSearch);
-
-                this.onNext = jasmine.createSpy('onNext');
-                this.collection.on('next', this.onNext);
-
-                this.onError = jasmine.createSpy('onError');
-                this.collection.on('error', this.onError);
+                this.filter = new Filter();
             });
 
-            it('sends a request and parses the json result', function () {
+            it('has properties', function () {
+                expect(this.filter.get('type')).toBeDefined();
+                expect(this.filter.get('query')).toBeDefined();
+                expect(this.filter.get('name')).toBeDefined();
+            });
+
+        });
+
+
+        describe('collections.Filters', function () {
+
+            beforeEach(function () {
+                this.filters = new Filters([
+                    { type: 'org', query: 'edX', name: 'edX'},
+                    { type: 'language', query: 'en', name: 'English'}
+                ]);
+            });
+
+            it('converts to a dictionary', function () {
+                expect(this.filters.getTerms()).toEqual({
+                    org: 'edX',
+                    language: 'en'
+                });
+            });
+
+        });
+
+
+        describe('models.CourseCard', function () {
+
+            beforeEach(function () {
+                this.card = new CourseCard();
+            });
+
+            it('has properties', function () {
+                expect(this.card.get('modes')).toBeDefined();
+                expect(this.card.get('course')).toBeDefined();
+                expect(this.card.get('enrollment_start')).toBeDefined();
+                expect(this.card.get('number')).toBeDefined();
+                expect(this.card.get('content')).toEqual({
+                    display_name: '',
+                    number: '',
+                    overview: ''
+                });
+                expect(this.card.get('start')).toBeDefined();
+                expect(this.card.get('image_url')).toBeDefined();
+                expect(this.card.get('org')).toBeDefined();
+                expect(this.card.get('id')).toBeDefined();
+            });
+
+        });
+
+
+        describe('models.FacetOption', function () {
+
+            beforeEach(function () {
+                this.filter = new FacetOption();
+            });
+
+            it('has properties', function () {
+                expect(this.filter.get('facet')).toBeDefined();
+                expect(this.filter.get('term')).toBeDefined();
+                expect(this.filter.get('count')).toBeDefined();
+                expect(this.filter.get('selected')).toBeDefined();
+            });
+
+        });
+
+
+        describe('models.CourseDiscovery', function () {
+
+            beforeEach(function () {
                 var requests = AjaxHelpers.requests(this);
-                this.collection.performSearch('search string');
+                this.discovery = new CourseDiscovery();
+                this.discovery.fetch();
                 AjaxHelpers.respondWithJson(requests, JSON_RESPONSE);
-                expect(this.onSearch).toHaveBeenCalled();
-                expect(this.collection.totalCount).toEqual(365);
-                expect(this.collection.latestModels()[0].attributes).toEqual(JSON_RESPONSE.results[0].data);
-                expect(this.collection.page).toEqual(0);
             });
 
-            it('handles errors', function () {
+            it('parses server response', function () {
+                expect(this.discovery.courseCards.length).toBe(1);
+                expect(this.discovery.facetOptions.length).toBe(27);
+            });
+
+            it('resets collections', function () {
+                this.discovery.reset();
+                expect(this.discovery.courseCards.length).toBe(0);
+                expect(this.discovery.facetOptions.length).toBe(0);
+            });
+
+            it('returns latest course cards', function () {
+                var latest = this.discovery.latest();
+                expect(latest.length).toBe(1);
+            });
+
+        });
+
+
+        describe('models.SearchState', function () {
+
+            beforeEach(function () {
+                this.search = new SearchState();
+                this.onSearch = jasmine.createSpy('onSearch');
+                this.onNext = jasmine.createSpy('onNext');
+                this.onError = jasmine.createSpy('onError');
+                this.search.on('search', this.onSearch);
+                this.search.on('next', this.onNext);
+                this.search.on('error', this.onError);
+            });
+
+            it('perform search', function () {
                 var requests = AjaxHelpers.requests(this);
-                this.collection.performSearch('search string');
-                AjaxHelpers.respondWithError(requests);
-                expect(this.onSearch).not.toHaveBeenCalled();
-                expect(this.onError).toHaveBeenCalled();
-                this.collection.loadNextPage();
-                AjaxHelpers.respondWithError(requests);
-                expect(this.onSearch).not.toHaveBeenCalled();
+                this.search.performSearch('dummy');
+                AjaxHelpers.respondWithJson(requests, JSON_RESPONSE);
+                expect(this.onSearch).toHaveBeenCalledWith('dummy', 365);
+                expect(this.search.discovery.courseCards.length).toBe(1);
+                this.search.refineSearch({ modes: 'honor' });
+                AjaxHelpers.respondWithJson(requests, JSON_RESPONSE);
+                expect(this.onSearch).toHaveBeenCalledWith('dummy', 365);
+            });
+
+            it('returns an error', function () {
+                var requests = AjaxHelpers.requests(this);
+                this.search.performSearch('');
+                AjaxHelpers.respondWithError(requests, 500);
                 expect(this.onError).toHaveBeenCalled();
             });
 
             it('loads next page', function () {
                 var requests = AjaxHelpers.requests(this);
-                var response = { total: 35, results: [] };
-                this.collection.loadNextPage();
-                AjaxHelpers.respondWithJson(requests, response);
+                this.search.performSearch('dummy');
+                AjaxHelpers.respondWithJson(requests, JSON_RESPONSE);
+                this.search.loadNextPage();
+                AjaxHelpers.respondWithJson(requests, JSON_RESPONSE);
                 expect(this.onNext).toHaveBeenCalled();
-                expect(this.onError).not.toHaveBeenCalled();
             });
 
-            it('sends correct paging parameters', function () {
+            it('shows all results when there are none', function () {
                 var requests = AjaxHelpers.requests(this);
-                var response = { total: 52, results: [] };
-                this.collection.performSearch('search string');
-                AjaxHelpers.respondWithJson(requests, response);
-                this.collection.loadNextPage();
-                AjaxHelpers.respondWithJson(requests, response);
-                spyOn($, 'ajax');
-                this.collection.loadNextPage();
-                expect($.ajax.mostRecentCall.args[0].url).toEqual(this.collection.url);
-                expect($.ajax.mostRecentCall.args[0].data).toEqual({
-                    search_string : 'search string',
-                    page_size : this.collection.pageSize,
-                    page_index : 2
-                });
-            });
-
-            it('has next page', function () {
-                var requests = AjaxHelpers.requests(this);
-                var response = { total: 35, access_denied_count: 5, results: [] };
-                this.collection.performSearch('search string');
-                AjaxHelpers.respondWithJson(requests, response);
-                expect(this.collection.hasNextPage()).toEqual(true);
-                this.collection.loadNextPage();
-                AjaxHelpers.respondWithJson(requests, response);
-                expect(this.collection.hasNextPage()).toEqual(false);
-            });
-
-            it('resets state when performing new search', function () {
-                this.collection.add(new CourseCard());
-                expect(this.collection.length).toEqual(1);
-                this.collection.performSearch('search string');
-                expect(this.collection.length).toEqual(0);
-                expect(this.collection.page).toEqual(0);
-                expect(this.collection.totalCount).toEqual(0);
-                expect(this.collection.latestModelsCount).toEqual(0);
+                this.search.performSearch('dummy', { modes: 'SomeOption' });
+                // no results
+                AjaxHelpers.respondWithJson(requests, { total: 0 });
+                expect(this.onSearch).not.toHaveBeenCalled();
+                // there should be another Ajax call to fetch all courses
+                AjaxHelpers.respondWithJson(requests, JSON_RESPONSE);
+                expect(this.onSearch).toHaveBeenCalledWith('dummy', 0);
+                // new search
+                this.search.performSearch('something');
+                // no results
+                AjaxHelpers.respondWithJson(requests, { total: 0 });
+                // should load cached results
+                expect(this.onSearch).toHaveBeenCalledWith('dummy', 0);
             });
 
         });
 
 
-        describe('CourseCard', function () {
-
-            beforeEach(function () {
-                this.result = new CourseCard();
-            });
-
-            it('has properties', function () {
-                expect(this.result.get('modes')).toBeDefined();
-                expect(this.result.get('course')).toBeDefined();
-                expect(this.result.get('enrollment_start')).toBeDefined();
-                expect(this.result.get('number')).toBeDefined();
-                expect(this.result.get('content')).toEqual({
-                    display_name: '',
-                    number: '',
-                    overview: ''
-                });
-                expect(this.result.get('start')).toBeDefined();
-                expect(this.result.get('image_url')).toBeDefined();
-                expect(this.result.get('org')).toBeDefined();
-                expect(this.result.get('id')).toBeDefined();
-            });
-
-        });
-
-
-        describe('CourseCardView', function () {
+        describe('views.CourseCard', function () {
 
             beforeEach(function () {
                 TemplateHelpers.installTemplate('templates/discovery/course_card');
-                this.item = new CourseCardView({
+                this.view = new CourseCardView({
                     model: new CourseCard(JSON_RESPONSE.results[0].data)
                 });
+                this.view.render();
             });
 
-            it('renders correctly', function () {
-                var data = this.item.model.attributes;
-                this.item.render();
-                expect(this.item.$el).toContainHtml(data.content.display_name);
-                expect(this.item.$el).toContain('a[href="/courses/' + data.course + '/about"]');
-                expect(this.item.$el).toContain('img[src="' + data.image_url + '"]');
-                expect(this.item.$el.find('.course-name')).toContainHtml(data.org);
-                expect(this.item.$el.find('.course-name')).toContainHtml(data.content.number);
-                expect(this.item.$el.find('.course-name')).toContainHtml(data.content.display_name);
-                expect(this.item.$el.find('.course-date')).toContainHtml('Jan 01, 1970');
+            it('renders', function () {
+                var data = this.view.model.attributes;
+                expect(this.view.$el).toContainHtml(data.content.display_name);
+                expect(this.view.$el).toContain('a[href="/courses/' + data.course + '/about"]');
+                expect(this.view.$el).toContain('img[src="' + data.image_url + '"]');
+                expect(this.view.$el.find('.course-name')).toContainHtml(data.org);
+                expect(this.view.$el.find('.course-name')).toContainHtml(data.content.number);
+                expect(this.view.$el.find('.course-name')).toContainHtml(data.content.display_name);
+                expect(this.view.$el.find('.course-date')).toContainHtml('Jan 01, 1970');
             });
 
         });
 
 
-        describe('SearchForm', function () {
+        describe('views.CoursesListing', function () {
+
+            beforeEach(function () {
+                jasmine.Clock.useMock();
+                loadFixtures('js/fixtures/discovery.html');
+                TemplateHelpers.installTemplate('templates/discovery/course_card');
+                var collection = new Backbone.Collection(
+                    [JSON_RESPONSE.results[0].data],
+                    { model: CourseCard }
+                );
+                var mock = {
+                    collection: collection,
+                    latest: function () { return this.collection.last(20); }
+                }
+                this.view = new CoursesListing({ model: mock });
+            });
+
+            it('renders search results', function () {
+                this.view.render();
+                expect($('.courses-listing article').length).toEqual(1);
+                expect($('.courses-listing .course-title')).toContainHtml('edX Demonstration Course');
+                this.view.renderNext();
+                expect($('.courses-listing article').length).toEqual(2);
+            });
+
+            it('scrolling triggers an event for next page', function () {
+                this.onNext = jasmine.createSpy('onNext');
+                this.view.on('next', this.onNext);
+                this.view.render();
+                window.scroll(0, $(document).height());
+                $(window).trigger('scroll');
+                jasmine.Clock.tick(500);
+                expect(this.onNext).toHaveBeenCalled();
+
+                // should not be triggered again (while it is loading)
+                $(window).trigger('scroll');
+                jasmine.Clock.tick(500);
+                expect(this.onNext.calls.length).toEqual(1);
+            });
+
+        });
+
+
+        describe('views.FilterLabel', function () {
+
+            beforeEach(function () {
+                TemplateHelpers.installTemplate('templates/discovery/filter');
+                var filter = new Filter({
+                    type: 'language',
+                    query: 'en',
+                    name: 'English'
+                });
+                this.view = new FilterLabel({model: filter});
+                this.view.render();
+            });
+
+            it('renders', function () {
+                var data = this.view.model.attributes;
+                expect(this.view.$el.find('button')).toHaveData('value', 'en');
+                expect(this.view.$el.find('button')).toHaveData('type', 'language');
+                expect(this.view.$el).toContainHtml(data.name);
+            });
+
+            it('renders changes', function () {
+                this.view.model.set('query', 'es');
+                expect(this.view.$el.find('button')).toHaveData('value', 'es');
+            });
+
+            it('removes itself', function () {
+                // simulate removing from collection
+                this.view.model.trigger('remove');
+                expect(this.view.$el).not.toExist();
+            });
+
+        });
+
+
+        describe('views.FilterBar', function () {
+
+            beforeEach(function () {
+                loadFixtures('js/fixtures/discovery.html');
+                TemplateHelpers.installTemplates([
+                    'templates/discovery/filter',
+                    'templates/discovery/filter_bar'
+                ]);
+                this.filters = new Filters();
+                this.filterBar = new FilterBar({ collection: this.filters });
+                this.filters.add({
+                    type: 'org',
+                    query: 'edX',
+                    name: 'edX'
+                });
+            });
+
+            it('adds filter', function () {
+                expect(this.filterBar.$el.find('button')).toHaveData('type', 'org');
+            });
+
+            it('removes filter', function () {
+                this.filters.remove('org');
+                expect(this.filterBar.$el.find('ul')).toBeEmpty();
+                expect(this.filterBar.$el).toHaveClass('is-collapsed');
+            });
+
+            it('resets filters', function () {
+                this.filters.reset();
+                expect(this.filterBar.$el.find('ul')).toBeEmpty();
+                expect(this.filterBar.$el).toHaveClass('is-collapsed');
+            });
+
+            it('triggers events', function () {
+                this.onClearFilter = jasmine.createSpy('onClearFilter');
+                this.onClearAll = jasmine.createSpy('onClearAll');
+                this.filterBar.on('clearFilter', this.onClearFilter);
+                this.filterBar.on('clearAll', this.onClearAll);
+                this.filterBar.$el.find('button').click();
+                expect(this.onClearFilter).toHaveBeenCalledWith('org');
+                this.filterBar.$el.find('#clear-all-filters').click();
+                expect(this.onClearAll).toHaveBeenCalled();
+            });
+
+        });
+
+
+        describe('views.RefineSidebar', function () {
+
+            beforeEach(function () {
+                loadFixtures('js/fixtures/discovery.html');
+                TemplateHelpers.installTemplates([
+                    'templates/discovery/facet',
+                    'templates/discovery/facet_option'
+                ]);
+                this.facetOptions = new Backbone.Collection([], { model: FacetOption });
+                this.facetOptions.add([
+                    { facet: 'language', term: 'es', count: 12 },
+                    { facet: 'language', term: 'en', count: 10 },
+                    { facet: 'modes', term: 'honor', count: 2, selected: true }
+                ]);
+                this.sidebar = new RefineSidebar({ collection: this.facetOptions, meanings: MEANINGS });
+                this.sidebar.render();
+
+            });
+
+            it('styles active filter', function () {
+                expect(this.sidebar.$el.find('button.selected')).toHaveData('facet', 'modes');
+            });
+
+            it('styles active filter', function () {
+                this.onSelect = jasmine.createSpy('onSelect');
+                this.sidebar.on('selectOption', this.onSelect);
+                this.sidebar.$el.find('button[data-value="en"]').click();
+                expect(this.onSelect).toHaveBeenCalledWith('language', 'en', 'English');
+            });
+
+            it('expands and collapses facet', function () {
+                var options = _.range(20).map(function (number) {
+                    return { facet: 'org', term: 'test' + number, count: 1 };
+                });
+                this.facetOptions.reset(options);
+                this.sidebar.render();
+                this.sidebar.$el.find('.show-more').click();
+                expect(this.sidebar.$el.find('ul.facet-list')).not.toHaveClass('collapse');
+                expect(this.sidebar.$el.find('.show-more')).toHaveClass('hidden');
+                this.sidebar.$el.find('.show-less').click();
+                expect(this.sidebar.$el.find('ul.facet-list')).toHaveClass('collapse');
+                expect(this.sidebar.$el.find('.show-less')).toHaveClass('hidden');
+            });
+
+        });
+
+
+        describe('views.SearchForm', function () {
 
             beforeEach(function () {
                 loadFixtures('js/fixtures/discovery.html');
@@ -268,14 +509,14 @@ define([
                 $('.discovery-input').val(term);
                 this.form.doSearch(term);
                 expect(this.onSearch).toHaveBeenCalledWith($.trim(term));
-                expect($('.discovery-input').val()).toEqual(term);
+                expect($('.discovery-input').val()).toBe(term);
                 expect($('#discovery-message')).toBeEmpty();
             });
 
             it('clears search', function () {
                 $('.discovery-input').val('somethig');
                 this.form.clearSearch();
-                expect($('.discovery-input').val()).toEqual('');
+                expect($('.discovery-input').val()).toBe('');
             });
 
             it('shows/hides loading indicator', function () {
@@ -286,6 +527,8 @@ define([
             });
 
             it('shows messages', function () {
+                this.form.showFoundMessage(123);
+                expect($('#discovery-message')).toContainHtml(123);
                 this.form.showNotFoundMessage();
                 expect($('#discovery-message')).not.toBeEmpty();
                 this.form.showErrorMessage();
@@ -294,232 +537,22 @@ define([
 
         });
 
-        describe('FilterBarView', function () {
-            beforeEach(function () {
-                loadFixtures('js/fixtures/discovery.html');
-                TemplateHelpers.installTemplates(
-                    ['templates/discovery/filter_bar',
-                    'templates/discovery/filter']
-                );
-                this.filterBar = new FiltersBarView();
-                this.onClear = jasmine.createSpy('onClear');
-                this.filterBar.on('clear', this.onClear);
-            });
 
-            it('view searches for sent facet object', function () {
-                expect(this.filterBar.$el.length).toBe(1);
-                this.filterBar.addFilter(FACET_LIST[0]);
-                expect(this.filterBar.$el.find('#clear-all-filters')).toBeVisible();
-            });
-
-            it('view searches for entered search string', function () {
-                spyOn(this.filterBar, 'addFilter').andCallThrough();
-                expect(this.filterBar.$el.length).toBe(1);
-                this.filterBar.changeQueryFilter(SEARCH_FILTER.query);
-                expect(this.filterBar.$el.find('#clear-all-filters')).toBeVisible();
-                expect(this.filterBar.addFilter).toHaveBeenCalledWith(SEARCH_FILTER);
-            });
-
-            it('model cleans view on destruction correctly', function () {
-                this.filterBar.addFilter(SEARCH_FILTER);
-                var model = this.filterBar.collection.findWhere(SEARCH_FILTER);
-                expect(this.filterBar.$el.find('.active-filter').length).toBe(1);
-                model.cleanModelView();
-                expect(this.filterBar.$el.find('.active-filter').length).toBe(0);
-            });
-
-            it('view removes all filters and hides bar if clear all', function () {
-                spyOn(this.filterBar, 'clearAll').andCallThrough();
-                this.filterBar.delegateEvents();
-                this.filterBar.addFilter(SEARCH_FILTER);
-                var clearAll = this.filterBar.$el.find('#clear-all-filters');
-                expect(clearAll).toBeVisible();
-                clearAll.trigger('click');
-                expect(this.filterBar.clearAll).toHaveBeenCalled();
-                expect(this.onClear).toHaveBeenCalled();
-            });
-
-            it('view hides bar if all filters removed', function () {
-                spyOn(this.filterBar, 'clearFilter').andCallThrough();
-                this.filterBar.delegateEvents();
-                this.filterBar.addFilter(SEARCH_FILTER);
-                var clearAll = this.filterBar.$el.find('#clear-all-filters');
-                expect(clearAll).toBeVisible();
-                var filter = this.filterBar.$el.find('li .discovery-button');
-                filter.trigger('click');
-                expect(this.filterBar.clearFilter).toHaveBeenCalled();
-                expect(this.onClear).toHaveBeenCalled();
-            });
-
-            it('view changes query filter', function () {
-                this.filterBar.addFilter(SEARCH_FILTER);
-                var filter = $(this.filterBar.$el.find('li .discovery-button')[0]);
-                expect(filter.text().trim()).toBe(SEARCH_FILTER.query);
-                // Have to explicitly remove model because events not dispatched
-                var model = this.filterBar.collection.findWhere(SEARCH_FILTER);
-                model.cleanModelView();
-                this.filterBar.changeQueryFilter(SEARCH_FILTER.query + '2');
-                filter = $(this.filterBar.$el.find('li .discovery-button')[0]);
-                expect(filter.text().trim()).toBe(SEARCH_FILTER.query + '2');
-            });
-
-            it('view returns correct search term', function () {
-                this.filterBar.addFilter(SEARCH_FILTER);
-                expect(this.filterBar.getSearchTerm()).toBe(SEARCH_FILTER.query);
-            });
-
-        });
-
-        describe('RefineSidebar', function () {
-            beforeEach(function () {
-                loadFixtures('js/fixtures/discovery.html');
-                TemplateHelpers.installTemplates([
-                    'templates/discovery/search_facet',
-                    'templates/discovery/search_facets_section',
-                    'templates/discovery/search_facets_list',
-                    'templates/discovery/more_less_links'
-                ]);
-                var facetsTypes = {org: 'Organization', modes: 'Course Type'};
-                this.refineSidebar = new RefineSidebar(facetsTypes);
-                this.refineSidebar.renderFacets(JSON_RESPONSE.facets);
-                this.onAddFilter = jasmine.createSpy('onAddFilter');
-                this.refineSidebar.on('addFilter', this.onAddFilter);
-            });
-
-            it('view expands more content on show more click', function () {
-                var $showMore = this.refineSidebar.$el.find('.show-more');
-                var $showLess = this.refineSidebar.$el.find('.show-less');
-                var $ul = $showMore.parent('div').siblings('ul');
-                expect($showMore).not.toHaveClass('hidden');
-                expect($showLess).toHaveClass('hidden');
-                expect($ul).toHaveClass('collapse');
-                $showMore.trigger('click');
-                expect($showMore).toHaveClass('hidden');
-                expect($showLess).not.toHaveClass('hidden');
-                expect($ul).not.toHaveClass('collapse');
-            });
-
-            it('view collapses content on show less click', function () {
-                var $showMore = this.refineSidebar.$el.find('.show-more');
-                var $showLess = this.refineSidebar.$el.find('.show-less');
-                var $ul = $showMore.parent('div').siblings('ul');
-                $showMore.trigger('click');
-                expect($showMore).toHaveClass('hidden');
-                expect($showLess).not.toHaveClass('hidden');
-                expect($ul).not.toHaveClass('collapse');
-                $showLess.trigger('click');
-                expect($showMore).not.toHaveClass('hidden');
-                expect($showLess).toHaveClass('hidden');
-                expect($ul).toHaveClass('collapse');
-            });
-
-            it('view triggers addFilter event if facet is clicked', function () {
-                this.refineSidebar.delegateEvents();
-                var $facetLink = this.refineSidebar.$el.find('li [data-value="edX1"]');
-                var $facet = $facetLink.parent('li');
-                $facet.trigger('click');
-                expect(this.onAddFilter).toHaveBeenCalledWith(
-                    {
-                        type: $facet.data('facet'),
-                        query: $facetLink.data('value'),
-                        name : $facetLink.data('text')
-                    }
-                );
-            });
-
-            it('re-render facets on second click', function () {
-                // First search
-                this.refineSidebar.delegateEvents();
-                this.refineSidebar.renderFacets(JSON_RESPONSE.facets);
-                expect(this.refineSidebar.facetViews.length).toBe(2);
-                // Setup spy
-                var customView = this.refineSidebar.facetViews[0];
-                spyOn(customView, 'remove').andCallThrough();
-                // Second search
-                this.refineSidebar.renderFacets(JSON_RESPONSE.facets);
-                expect(this.refineSidebar.facetViews.length).toBe(2);
-                expect(customView.remove).toHaveBeenCalled();
-            });
-
-        });
-
-        describe('CouresListing', function () {
-
-            beforeEach(function () {
-                jasmine.Clock.useMock();
-                loadFixtures('js/fixtures/discovery.html');
-                TemplateHelpers.installTemplate('templates/discovery/course_card');
-                var collection = new Collection([JSON_RESPONSE.results[0].data]);
-                collection.latestModelsCount = 1;
-                this.view = new CouresListing({ collection: collection });
-            });
-
-            it('renders search results', function () {
-                this.view.render();
-                expect($('.courses-listing article').length).toEqual(1);
-                expect($('.courses-listing .course-title')).toContainHtml('edX Demonstration Course');
-                this.view.renderNext();
-                expect($('.courses-listing article').length).toEqual(2);
-            });
-
-            it('scrolling triggers an event for next page', function () {
-                this.onNext = jasmine.createSpy('onNext');
-                this.view.on('next', this.onNext);
-                spyOn(this.view.collection, 'hasNextPage').andCallFake(function () {
-                    return true;
-                });
-                this.view.render();
-                window.scroll(0, $(document).height());
-                $(window).trigger('scroll');
-                jasmine.Clock.tick(500);
-                expect(this.onNext).toHaveBeenCalled();
-
-                // should not be triggered again (while it is loading)
-                $(window).trigger('scroll');
-                jasmine.Clock.tick(500);
-                expect(this.onNext.calls.length).toEqual(1);
-            });
-
-        });
-
-        describe('Discovery Factory', function () {
+        describe('DiscoveryFactory', function () {
 
             beforeEach(function () {
                 loadFixtures('js/fixtures/discovery.html');
                 TemplateHelpers.installTemplates([
                     'templates/discovery/course_card',
+                    'templates/discovery/facet',
+                    'templates/discovery/facet_option',
                     'templates/discovery/filter',
-                    'templates/discovery/filter_bar',
-                    'templates/discovery/search_facet',
-                    'templates/discovery/search_facets_section',
-                    'templates/discovery/search_facets_list',
-                    'templates/discovery/more_less_links'
+                    'templates/discovery/filter_bar'
                 ]);
-
-                DiscoveryFactory(
-                    {
-                        org: {
-                            name: 'Organization',
-                            terms: {
-                                edX1: "edX_1"
-                            }
-                        },
-                        modes: {
-                            name: 'Course Type',
-                            terms: {
-                                honor: 'Honor',
-                                verified: 'Verified'
-                            }
-                        },
-                        language: {
-                            en: 'English',
-                            hr: 'Croatian'
-                        }
-                    }
-                );
+                DiscoveryFactory(MEANINGS);
             });
 
-            it('performs search', function () {
+            it('does search', function () {
                 var requests = AjaxHelpers.requests(this);
                 $('.discovery-input').val('test');
                 $('.discovery-submit').trigger('click');
@@ -568,10 +601,10 @@ define([
                 $('.discovery-submit').trigger('click');
                 AjaxHelpers.respondWithJson(requests, JSON_RESPONSE);
                 expect($('.active-filter').length).toBe(1);
-                expect($('#filter-bar')).not.toHaveClass('hidden');
+                expect($('#filter-bar')).not.toHaveClass('is-collapsed');
                 $('#clear-all-filters').trigger('click');
                 expect($('.active-filter').length).toBe(0);
-                expect($('#filter-bar')).toHaveClass('hidden');
+                expect($('#filter-bar')).toHaveClass('is-collapsed');
             });
 
             it('check filters and bar removed on last filter cleared', function () {
@@ -591,13 +624,15 @@ define([
                 $('.discovery-submit').trigger('click');
                 AjaxHelpers.respondWithJson(requests, JSON_RESPONSE);
                 expect($('.active-filter').length).toBe(1);
-                var $facetLink = $('.search-facets li [data-value="edX1"]');
-                var $facet = $facetLink.parent('li');
-                $facet.trigger('click');
+                $('.search-facets li [data-value="edX1"]').trigger('click');
                 expect($('.active-filter').length).toBe(2);
                 expect($('.active-filter [data-value="edX1"]').length).toBe(1);
-                expect($('.active-filter [data-value="edX1"]').text().trim()).toBe("edX_1");
+                $('.search-facets li [data-value="edX1"]').trigger('click');
+                expect($('.active-filter [data-value="edX1"]').length).toBe(0);
             });
+
         });
+
     });
+
 });

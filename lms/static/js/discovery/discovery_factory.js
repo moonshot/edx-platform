@@ -14,7 +14,10 @@
                 var listing = new CoursesListing({ model: search.discovery });
                 var form = new SearchForm();
                 var filterBar = new FilterBar({ collection: filters });
-                var refineSidebar = new RefineSidebar({ collection: search.discovery.facetOptions });
+                var refineSidebar = new RefineSidebar({
+                    collection: search.discovery.facetOptions,
+                    meanings: meanings
+                });
 
                 dispatcher.listenTo(form, 'search', function (query) {
                     filters.reset();

@@ -17,8 +17,8 @@ define([
             'click .show-more': 'expand'
         },
 
-        initialize: function (meanings) {
-            this.meanings = meanings || {}
+        initialize: function (options) {
+            this.meanings = options.meanings || {}
             this.$container = this.$el.find('.search-facets-lists');
             this.facetTpl = _.template($('#facet-tpl').html());
             this.facetOptionTpl = _.template($('#facet_option-tpl').html());
