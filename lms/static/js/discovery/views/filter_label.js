@@ -4,7 +4,7 @@ define([
     'jquery',
     'underscore',
     'backbone',
-    'gettext',
+    'gettext'
 ], function ($, _, Backbone, gettext) {
     'use strict';
 
