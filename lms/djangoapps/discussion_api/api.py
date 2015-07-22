@@ -7,7 +7,7 @@ from urlparse import urlunparse
 
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
-from django.http import Http404, HttpResponseBadRequest
+from django.http import Http404
 
 from rest_framework.exceptions import PermissionDenied
 
@@ -269,6 +269,7 @@ def get_thread_list(
 
     Raises:
 
+    ValidationError: if an invalid value is passed for a field
     ValueError: if more than one of the mutually exclusive parameters is
       provided
     Http404: if the requesting user does not have access to the requested course
@@ -279,12 +280,17 @@ def get_thread_list(
         raise ValueError("More than one mutually exclusive param passed to get_thread_list")
 
     # These should already be validated by the django forms.
-    if order_by:
-        cc_map = {"last_activity_at": "date", "comment_count": "comments", "vote_count": "votes"}
-        if order_by not in cc_map:
-            raise ValidationError({"order_by": ["Invalid value"]})  # pylint: disable=raising-non-exception
+    cc_map = {"last_activity_at": "date", "comment_count": "comments", "vote_count": "votes"}
+    if order_by and order_by not in cc_map:
+        raise ValidationError({
+            "order_by":
+                ["Invalid value. '{}' must be 'last_activity_at', 'comment_count', or 'vote_count'".format(order_by)]
+            }
+        )
     if order_direction and order_direction not in ["asc", "desc"]:
-        raise ValidationError({"order_direction": ["Invalid value"]})  # pylint: disable=raising-non-exception
+        raise ValidationError({
+            "order_direction": ["Invalid value. '{}' must be 'asc' or 'desc'".format(order_direction)]
+        })
 
     course = _get_course_or_404(course_key, request.user)
     context = get_context(course, request)
