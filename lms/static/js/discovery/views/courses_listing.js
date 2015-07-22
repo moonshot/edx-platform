@@ -32,7 +32,7 @@ define([
         },
 
         renderItems: function () {
-            var latest = this.collection.latestModels();
+            var latest = this.model.latest();
             var items = latest.map(function (result) {
                 var item = new CourseCardView({ model: result });
                 return item.render().el;
@@ -45,8 +45,9 @@ define([
         },
 
         scrollHandler: function () {
-            if (this.isNearBottom()) {
-                this.scrolledToBottom();
+            if (this.isNearBottom() && !this.isLoading) {
+                this.trigger('next');
+                this.isLoading = true;
             }
         },
 
@@ -54,17 +55,6 @@ define([
             var scrollBottom = this.$window.scrollTop() + this.$window.height();
             var threshold = this.$document.height() - 200;
             return scrollBottom >= threshold;
-        },
-
-        scrolledToBottom: function () {
-            if (this.thereIsMore() && !this.isLoading) {
-                this.trigger('next');
-                this.isLoading = true;
-            }
-        },
-
-        thereIsMore: function () {
-            return this.collection.hasNextPage();
         }
 
     });

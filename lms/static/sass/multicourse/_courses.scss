@@ -326,11 +326,24 @@ $facet-background-color: #007db8;
   .filters {
     @include clearfix();
     margin-top: ($baseline/2);
-    border-top: 2px solid $courseware-button-border-color;
-    border-bottom: 2px solid $courseware-button-border-color;
     width: 100%;
     height: auto;
     max-height: ($baseline*10);
+    overflow: hidden;
+
+    &.is-animated {
+      @include transition(max-height 0.3s);
+    }
+
+    &.is-collapsed {
+      max-height: 0;
+    }
+
+    .filters-inner {
+      @include clearfix();
+      border-top: 2px solid $courseware-button-border-color;
+      border-bottom: 2px solid $courseware-button-border-color;
+    }
 
     ul {
       @include padding-left(0);
@@ -433,11 +446,6 @@ $facet-background-color: #007db8;
     }
 
     .header-facet {
-      margin: 0 ($baseline/2);
-      padding: ($baseline/2) 0;
-    }
-
-    .search-facets-lists section {
       border-top: 1px solid $gray-l4;
     }
 
@@ -447,7 +455,16 @@ $facet-background-color: #007db8;
       padding-bottom: ($baseline/2);
 
       &.collapse {
-        max-height: ($baseline*14);
+        max-height: ($baseline*1.5*9) - ($baseline/2);
+        overflow: hidden;
+      }
+
+      li {
+        @include clearfix();
+        position: relative;
+        padding: 0;
+        height: ($baseline*1.5);
+        clear: both;
       }
     }
 
@@ -463,19 +480,13 @@ $facet-background-color: #007db8;
       color: $facet-text-color;
       opacity: 1;
 
-      li {
-        @include clearfix();
-        position: relative;
-        clear: both;
-        padding: 0;
-        height: ($baseline*1.5);
-      }
-
       .count {
         @include right($baseline*0.6);
+        @include text-align(right);
         @include box-sizing(border-box);
         @include transition(all 0.2s ease-out);
         position: absolute;
+        width: ($baseline*2);
       }
 
       //STATE: hover, focus
@@ -488,6 +499,27 @@ $facet-background-color: #007db8;
           color: $white;
         }
       }
+
+      &.selected,
+      &.selected:hover,
+      &.selected:focus {
+        background: $gray-l4;
+        color: $facet-text-color;
+
+        .count {
+          color: $gray-l4;
+        }
+
+        .count:before {
+          @include left($baseline*0.75);
+          position: absolute;
+          width: ($baseline*2);
+          color: $gray-l1;
+          font-family: FontAwesome;
+          text-align: center;
+          content: '\f00d'; // fa-times
+        }
+      }
     }
 
     .toggle {
@@ -496,6 +528,7 @@ $facet-background-color: #007db8;
       button {
         @extend %t-icon6;
         @extend %t-strong;
+        padding: ($baseline/4) ($baseline/2);
         color: $facet-background-color;
       }
     }

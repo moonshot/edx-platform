@@ -1,68 +1,93 @@
 ;(function (define) {
     'use strict';
 
-    define(['backbone', 'js/discovery/collection', 'js/discovery/views/search_form',
-        'js/discovery/views/courses_listing', 'js/discovery/views/filter_bar', 'js/discovery/views/refine_sidebar'],
-        function(Backbone, Collection, SearchForm, CoursesListing, FilterBarView, RefineSidebar) {
+    define(['backbone', 'js/discovery/models/search_state', 'js/discovery/collections/filters',
+        'js/discovery/views/search_form', 'js/discovery/views/courses_listing',
+        'js/discovery/views/filter_bar', 'js/discovery/views/refine_sidebar'],
+        function(Backbone, SearchState, Filters, SearchForm, CoursesListing, FilterBar, RefineSidebar) {
 
             return function (meanings, searchQuery) {
 
-                var collection = new Collection([]);
-                var listing = new CoursesListing({ collection: collection });
-                var dispatcher = _.clone(Backbone.Events);
+                var dispatcher = _.extend({}, Backbone.Events);
+                var search = new SearchState();
+                var filters = new Filters();
+                var listing = new CoursesListing({ model: search.discovery });
                 var form = new SearchForm();
-                var filters = new FilterBarView();
-                var refineSidebar = new RefineSidebar(meanings);
+                var filterBar = new FilterBar({ collection: filters });
+                var refineSidebar = new RefineSidebar({ collection: search.discovery.facetOptions });
 
                 dispatcher.listenTo(form, 'search', function (query) {
+                    filters.reset();
                     form.showLoadingIndicator();
-                    filters.changeQueryFilter(query);
+                    search.performSearch(query, filters.getTerms());
                 });
 
-                dispatcher.listenTo(filters, 'search', function (searchTerm, facets) {
-                    collection.performSearch(searchTerm, facets);
+                dispatcher.listenTo(refineSidebar, 'selectOption', function (type, query, name) {
                     form.showLoadingIndicator();
+                    if (filters.get(type)) {
+                        removeFilter(type);
+                    }
+                    else {
+                        filters.add({type: type, query: query, name: name});
+                        search.refineSearch(filters.getTerms());
+                    }
                 });
 
-                dispatcher.listenTo(filters, 'clear', function () {
-                    form.clearSearch();
-                    collection.performSearch();
-                    filters.hideClearAllButton();
+                dispatcher.listenTo(filterBar, 'clearFilter', removeFilter);
+
+                dispatcher.listenTo(filterBar, 'clearAll', function () {
+                    form.doSearch('');
                 });
 
                 dispatcher.listenTo(listing, 'next', function () {
-                    collection.loadNextPage();
-                    form.showLoadingIndicator();
+                    search.loadNextPage()
                 });
 
-                dispatcher.listenTo(collection, 'search', function () {
-                    if (collection.length > 0) {
-                        form.showFoundMessage(collection.totalCount);
-                        listing.render();
+                dispatcher.listenTo(search, 'next', function () {
+                    listing.renderNext();
+                });
+
+                dispatcher.listenTo(search, 'search', function (query, total) {
+                    if (total > 0) {
+                        form.showFoundMessage(total);
+                        if (query) {
+                            filters.add(
+                                {type: 'search_query', query: query, name: quote(query)},
+                                {merge: true}
+                            );
+                        }
                     }
                     else {
-                        form.showNotFoundMessage(collection.searchTerm);
+                        form.showNotFoundMessage(query);
+                        filters.reset();
                     }
-                    refineSidebar.renderFacets(collection.facets);
                     form.hideLoadingIndicator();
+                    listing.render();
+                    refineSidebar.render();
                 });
 
-                dispatcher.listenTo(collection, 'next', function () {
-                    listing.renderNext();
-                    form.hideLoadingIndicator();
-                });
-
-                dispatcher.listenTo(collection, 'error', function () {
+                dispatcher.listenTo(search, 'error', function () {
                     form.showErrorMessage();
                     form.hideLoadingIndicator();
                 });
 
-                dispatcher.listenTo(refineSidebar, 'addFilter', function (data) {
-                    filters.addFilter(data);
-                });
-
                 // kick off search on page refresh
                 form.doSearch(searchQuery);
+
+                function removeFilter(type) {
+                    form.showLoadingIndicator();
+                    filters.remove(type);
+                    if (type === 'search_query') {
+                        form.doSearch('');
+                    }
+                    else {
+                        search.refineSearch(filters.getTerms());
+                    }
+                }
+
+                function quote(string) {
+                    return '"'+string+'"';
+                }
 
             };
 

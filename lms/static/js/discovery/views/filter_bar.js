@@ -5,19 +5,15 @@ define([
     'underscore',
     'backbone',
     'gettext',
-    'js/discovery/collections/filters',
     'js/discovery/models/filter',
     'js/discovery/views/filter_label'
-], function ($, _, Backbone, gettext, FiltersCollection, Filter, FilterLabel) {
+], function ($, _, Backbone, gettext, Filter, FilterLabel) {
     'use strict';
 
     return Backbone.View.extend({
 
         el: '#filter-bar',
-
-        tagName: 'div',
         templateId: '#filter_bar-tpl',
-        className: 'filters hidden',
 
         events: {
             'click #clear-all-filters': 'clearAll',
@@ -25,91 +21,54 @@ define([
         },
 
         initialize: function () {
-            this.collection = new FiltersCollection([]);
             this.tpl = _.template($(this.templateId).html());
-            this.$el.html(this.tpl());
-            this.hideClearAllButton();
-            this.filtersList = this.$el.find('ul');
+            this.render();
+            this.listenTo(this.collection, 'remove', this.removeFilter);
+            this.listenTo(this.collection, 'add', this.addFilter);
+            this.listenTo(this.collection, 'reset', this.resetFilters);
         },
 
         render: function () {
+            this.$el.html(this.tpl());
+            this.$ul = this.$el.find('ul');
+            this.$el.addClass('is-animated');
             return this;
         },
 
-        changeQueryFilter: function(query) {
-            var queryModel = this.collection.getQueryModel();
-            if (typeof queryModel !== 'undefined') {
-                this.collection.remove(queryModel);
-            }
+        addFilter: function (filter) {
+            var label = new FilterLabel({model: filter});
+            this.$ul.append(label.render().el);
+            this.show();
+        },
 
-            if (query) {
-                var data = {query: query, type: 'search_string'};
-                this.addFilter(data);
-            }
-            else {
-                this.startSearch();
+        removeFilter: function () {
+            if (this.collection.isEmpty()) {
+                this.hide();
             }
         },
 
-        addFilter: function(data) {
-            var currentfilter = this.collection.findWhere(data);
-            if(typeof currentfilter === 'undefined') {
-                var filter = new Filter(data);
-                var filterView = new FilterLabel({model: filter});
-                this.collection.add(filter);
-                this.filtersList.append(filterView.render().el);
-                this.trigger('search', this.getSearchTerm(), this.collection);
-                if (this.$el.hasClass('hidden')) {
-                    this.showClearAllButton();
-                }
-            }
+        resetFilters: function () {
+            this.$ul.empty();
+            this.hide();
         },
 
         clearFilter: function (event) {
-            event.preventDefault();
             var $target =  $(event.currentTarget);
-            var clearModel = this.collection.findWhere({
-                query: $target.data('value'),
-                type: $target.data('type')
-            });
-            this.collection.remove(clearModel);
-            this.startSearch();
+            var filter = this.collection.get($target.data('type'));
+            this.trigger('clearFilter', filter.id);
         },
 
-        clearFilters: function() {
-            this.collection.reset([]);
-            this.filtersList.empty();
+        clearAll: function (event) {
+            this.trigger('clearAll');
         },
 
-        clearAll: function(event) {
-            event.preventDefault();
-            this.clearFilters();
-            this.trigger('clear');
+        show: function () {
+            this.$el.removeClass('is-collapsed');
         },
 
-        showClearAllButton: function () {
-            this.$el.removeClass('hidden');
-        },
-
-        hideClearAllButton: function() {
-            this.$el.addClass('hidden');
-        },
-
-        getSearchTerm: function() {
-            var queryModel = this.collection.getQueryModel();
-            if (typeof queryModel !== 'undefined') {
-                return queryModel.get('query');
-            }
-            return '';
-        },
-
-        startSearch: function() {
-            if (this.collection.length === 0) {
-                this.trigger('clear');
-            }
-            else {
-                this.trigger('search', this.getSearchTerm(), this.collection);
-            }
+        hide: function () {
+            this.$ul.empty();
+            this.$el.addClass('is-collapsed');
         }
 
     });
