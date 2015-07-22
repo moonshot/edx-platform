@@ -1,6 +1,6 @@
 ;(function (define) {
 
-define(['jquery', 'backbone'], function ($, Backbone) {
+define(['jquery', 'backbone', 'gettext'], function ($, Backbone, gettext) {
    'use strict';
 
     return Backbone.View.extend({
