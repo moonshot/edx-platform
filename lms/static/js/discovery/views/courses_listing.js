@@ -41,22 +41,13 @@ define([
         },
 
         attachScrollHandler: function () {
-            this.nextScrollEvent = true;
-            this.$window.on('scroll', this.scrollHandler.bind(this));
+            this.$window.on('scroll', _.throttle(this.scrollHandler.bind(this), 400));
         },
 
         scrollHandler: function () {
-            if (this.nextScrollEvent) {
-                setTimeout(this.throttledScrollHandler.bind(this), 400);
-                this.nextScrollEvent = false;
-            }
-        },
-
-        throttledScrollHandler: function () {
             if (this.isNearBottom()) {
                 this.scrolledToBottom();
             }
-            this.nextScrollEvent = true;
         },
 
         isNearBottom: function () {
