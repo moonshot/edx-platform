@@ -5,8 +5,8 @@ define([
     'underscore',
     'backbone',
     'gettext',
-    'js/discovery/facets_view',
-    'js/discovery/facet_view'
+    'js/discovery/views/facets',
+    'js/discovery/views/facet'
 ], function ($, _, Backbone, gettext, FacetsView, FacetView) {
     'use strict';
 

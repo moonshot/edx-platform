@@ -2,7 +2,7 @@
 
 define([
     'backbone',
-    'js/discovery/filter'
+    'js/discovery/models/filter'
 ], function (Backbone, Filter) {
     'use strict';
 

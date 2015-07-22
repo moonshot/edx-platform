@@ -1,20 +1,18 @@
 ;(function (define) {
     'use strict';
 
-    define(['backbone', 'js/discovery/collection', 'js/discovery/form', 'js/discovery/result_list_view',
-            'js/discovery/filter_bar_view', 'js/discovery/search_facets_view'],
-        function(Backbone, Collection, Form, ResultListView, FilterBarView, FacetsBarView) {
+    define(['backbone', 'js/discovery/collection', 'js/discovery/views/search_form',
+        'js/discovery/views/courses_listing', 'js/discovery/views/filter_bar', 'js/discovery/views/refine_sidebar'],
+        function(Backbone, Collection, SearchForm, CoursesListing, FilterBarView, RefineSidebar) {
 
             return function (meanings, searchQuery) {
-                //facet types configuration - set default display names
-                var facetsTypes = meanings;
 
                 var collection = new Collection([]);
-                var results = new ResultListView({ collection: collection });
+                var listing = new CoursesListing({ collection: collection });
                 var dispatcher = _.clone(Backbone.Events);
-                var form = new Form();
+                var form = new SearchForm();
                 var filters = new FilterBarView();
-                var facetsBarView = new FacetsBarView(facetsTypes);
+                var refineSidebar = new RefineSidebar(meanings);
 
                 dispatcher.listenTo(form, 'search', function (query) {
                     form.showLoadingIndicator();
@@ -32,7 +30,7 @@
                     filters.hideClearAllButton();
                 });
 
-                dispatcher.listenTo(results, 'next', function () {
+                dispatcher.listenTo(listing, 'next', function () {
                     collection.loadNextPage();
                     form.showLoadingIndicator();
                 });
@@ -40,17 +38,17 @@
                 dispatcher.listenTo(collection, 'search', function () {
                     if (collection.length > 0) {
                         form.showFoundMessage(collection.totalCount);
-                        results.render();
+                        listing.render();
                     }
                     else {
                         form.showNotFoundMessage(collection.searchTerm);
                     }
-                    facetsBarView.renderFacets(collection.facets);
+                    refineSidebar.renderFacets(collection.facets);
                     form.hideLoadingIndicator();
                 });
 
                 dispatcher.listenTo(collection, 'next', function () {
-                    results.renderNext();
+                    listing.renderNext();
                     form.hideLoadingIndicator();
                 });
 
@@ -59,7 +57,7 @@
                     form.hideLoadingIndicator();
                 });
 
-                dispatcher.listenTo(facetsBarView, 'addFilter', function (data) {
+                dispatcher.listenTo(refineSidebar, 'addFilter', function (data) {
                     filters.addFilter(data);
                 });
 

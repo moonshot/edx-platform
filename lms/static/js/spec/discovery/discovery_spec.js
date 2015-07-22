@@ -6,15 +6,15 @@ define([
     'common/js/spec_helpers/template_helpers',
     'js/discovery/discovery_factory',
     'js/discovery/collection',
-    'js/discovery/form',
-    'js/discovery/result',
-    'js/discovery/result_item_view',
-    'js/discovery/result_list_view',
-    'js/discovery/filter',
-    'js/discovery/filters',
-    'js/discovery/filter_bar_view',
-    'js/discovery/filter_view',
-    'js/discovery/search_facets_view'
+    'js/discovery/views/search_form',
+    'js/discovery/models/course_card',
+    'js/discovery/views/course_card',
+    'js/discovery/views/courses_listing',
+    'js/discovery/models/filter',
+    'js/discovery/collections/filters',
+    'js/discovery/views/filter_bar',
+    'js/discovery/views/filter_labels',
+    'js/discovery/views/refine_sidebar'
 ], function(
     $,
     Backbone,
@@ -23,15 +23,15 @@ define([
     TemplateHelpers,
     DiscoveryFactory,
     Collection,
-    DiscoveryForm,
-    ResultItem,
-    ResultItemView,
-    ResultListView,
+    SearchForm,
+    CourseCard,
+    CourseCardView,
+    CouresListing,
     FilterModel,
     FiltersCollection,
     FiltersBarView,
     FilterView,
-    SearchFacetView
+    RefineSidebar
 ) {
     'use strict';
 
@@ -186,7 +186,7 @@ define([
             });
 
             it('resets state when performing new search', function () {
-                this.collection.add(new ResultItem());
+                this.collection.add(new CourseCard());
                 expect(this.collection.length).toEqual(1);
                 this.collection.performSearch('search string');
                 expect(this.collection.length).toEqual(0);
@@ -198,10 +198,10 @@ define([
         });
 
 
-        describe('ResultItem', function () {
+        describe('CourseCard', function () {
 
             beforeEach(function () {
-                this.result = new ResultItem();
+                this.result = new CourseCard();
             });
 
             it('has properties', function () {
@@ -223,12 +223,12 @@ define([
         });
 
 
-        describe('ResultItemView', function () {
+        describe('CourseCardView', function () {
 
             beforeEach(function () {
-                TemplateHelpers.installTemplate('templates/discovery/result_item');
-                this.item = new ResultItemView({
-                    model: new ResultItem(JSON_RESPONSE.results[0].data)
+                TemplateHelpers.installTemplate('templates/discovery/course_card');
+                this.item = new CourseCardView({
+                    model: new CourseCard(JSON_RESPONSE.results[0].data)
                 });
             });
 
@@ -247,11 +247,11 @@ define([
         });
 
 
-        describe('DiscoveryForm', function () {
+        describe('SearchForm', function () {
 
             beforeEach(function () {
                 loadFixtures('js/fixtures/discovery.html');
-                this.form = new DiscoveryForm();
+                this.form = new SearchForm();
                 this.onSearch = jasmine.createSpy('onSearch');
                 this.form.on('search', this.onSearch);
             });
@@ -370,7 +370,7 @@ define([
 
         });
 
-        describe('SearchFacetView', function () {
+        describe('RefineSidebar', function () {
             beforeEach(function () {
                 loadFixtures('js/fixtures/discovery.html');
                 TemplateHelpers.installTemplates([
@@ -380,15 +380,15 @@ define([
                     'templates/discovery/more_less_links'
                 ]);
                 var facetsTypes = {org: 'Organization', modes: 'Course Type'};
-                this.searchFacetView = new SearchFacetView(facetsTypes);
-                this.searchFacetView.renderFacets(JSON_RESPONSE.facets);
+                this.refineSidebar = new RefineSidebar(facetsTypes);
+                this.refineSidebar.renderFacets(JSON_RESPONSE.facets);
                 this.onAddFilter = jasmine.createSpy('onAddFilter');
-                this.searchFacetView.on('addFilter', this.onAddFilter);
+                this.refineSidebar.on('addFilter', this.onAddFilter);
             });
 
             it('view expands more content on show more click', function () {
-                var $showMore = this.searchFacetView.$el.find('.show-more');
-                var $showLess = this.searchFacetView.$el.find('.show-less');
+                var $showMore = this.refineSidebar.$el.find('.show-more');
+                var $showLess = this.refineSidebar.$el.find('.show-less');
                 var $ul = $showMore.parent('div').siblings('ul');
                 expect($showMore).not.toHaveClass('hidden');
                 expect($showLess).toHaveClass('hidden');
@@ -400,8 +400,8 @@ define([
             });
 
             it('view collapses content on show less click', function () {
-                var $showMore = this.searchFacetView.$el.find('.show-more');
-                var $showLess = this.searchFacetView.$el.find('.show-less');
+                var $showMore = this.refineSidebar.$el.find('.show-more');
+                var $showLess = this.refineSidebar.$el.find('.show-less');
                 var $ul = $showMore.parent('div').siblings('ul');
                 $showMore.trigger('click');
                 expect($showMore).toHaveClass('hidden');
@@ -414,8 +414,8 @@ define([
             });
 
             it('view triggers addFilter event if facet is clicked', function () {
-                this.searchFacetView.delegateEvents();
-                var $facetLink = this.searchFacetView.$el.find('li [data-value="edX1"]');
+                this.refineSidebar.delegateEvents();
+                var $facetLink = this.refineSidebar.$el.find('li [data-value="edX1"]');
                 var $facet = $facetLink.parent('li');
                 $facet.trigger('click');
                 expect(this.onAddFilter).toHaveBeenCalledWith(
@@ -429,29 +429,29 @@ define([
 
             it('re-render facets on second click', function () {
                 // First search
-                this.searchFacetView.delegateEvents();
-                this.searchFacetView.renderFacets(JSON_RESPONSE.facets);
-                expect(this.searchFacetView.facetViews.length).toBe(2);
+                this.refineSidebar.delegateEvents();
+                this.refineSidebar.renderFacets(JSON_RESPONSE.facets);
+                expect(this.refineSidebar.facetViews.length).toBe(2);
                 // Setup spy
-                var customView = this.searchFacetView.facetViews[0];
+                var customView = this.refineSidebar.facetViews[0];
                 spyOn(customView, 'remove').andCallThrough();
                 // Second search
-                this.searchFacetView.renderFacets(JSON_RESPONSE.facets);
-                expect(this.searchFacetView.facetViews.length).toBe(2);
+                this.refineSidebar.renderFacets(JSON_RESPONSE.facets);
+                expect(this.refineSidebar.facetViews.length).toBe(2);
                 expect(customView.remove).toHaveBeenCalled();
             });
 
         });
 
-        describe('ResultListView', function () {
+        describe('CouresListing', function () {
 
             beforeEach(function () {
                 jasmine.Clock.useMock();
                 loadFixtures('js/fixtures/discovery.html');
-                TemplateHelpers.installTemplate('templates/discovery/result_item');
+                TemplateHelpers.installTemplate('templates/discovery/course_card');
                 var collection = new Collection([JSON_RESPONSE.results[0].data]);
                 collection.latestModelsCount = 1;
-                this.view = new ResultListView({ collection: collection });
+                this.view = new CouresListing({ collection: collection });
             });
 
             it('renders search results', function () {
@@ -487,7 +487,7 @@ define([
             beforeEach(function () {
                 loadFixtures('js/fixtures/discovery.html');
                 TemplateHelpers.installTemplates([
-                    'templates/discovery/result_item',
+                    'templates/discovery/course_card',
                     'templates/discovery/filter',
                     'templates/discovery/filter_bar',
                     'templates/discovery/search_facet',

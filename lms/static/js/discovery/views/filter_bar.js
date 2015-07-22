@@ -5,10 +5,10 @@ define([
     'underscore',
     'backbone',
     'gettext',
-    'js/discovery/filters',
-    'js/discovery/filter',
-    'js/discovery/filter_view'
-], function ($, _, Backbone, gettext, FiltersCollection, Filter, FilterView) {
+    'js/discovery/collections/filters',
+    'js/discovery/models/filter',
+    'js/discovery/views/filter_label'
+], function ($, _, Backbone, gettext, FiltersCollection, Filter, FilterLabel) {
     'use strict';
 
     return Backbone.View.extend({
@@ -55,7 +55,7 @@ define([
             var currentfilter = this.collection.findWhere(data);
             if(typeof currentfilter === 'undefined') {
                 var filter = new Filter(data);
-                var filterView = new FilterView({model: filter});
+                var filterView = new FilterLabel({model: filter});
                 this.collection.add(filter);
                 this.filtersList.append(filterView.render().el);
                 this.trigger('search', this.getSearchTerm(), this.collection);

@@ -5,8 +5,8 @@ define([
     'underscore',
     'backbone',
     'gettext',
-    'js/discovery/result_item_view'
-], function ($, _, Backbone, gettext, ResultItemView) {
+    'js/discovery/views/course_card'
+], function ($, _, Backbone, gettext, CourseCardView) {
    'use strict';
 
     return Backbone.View.extend({
@@ -34,7 +34,7 @@ define([
         renderItems: function () {
             var latest = this.collection.latestModels();
             var items = latest.map(function (result) {
-                var item = new ResultItemView({ model: result });
+                var item = new CourseCardView({ model: result });
                 return item.render().el;
             }, this);
             this.$list.append(items);
