@@ -686,35 +686,45 @@ class CertificateTemplate(TimeStampedModel):
     """
     name = models.CharField(
         max_length=255,
-        help_text=_(u'Name of template'),
+        help_text=_(u'Name of template.'),
     )
     description = models.CharField(
         max_length=255,
         null=True,
         blank=True,
-        help_text=_(u'Description and/or admin notes'),
+        help_text=_(u'Description and/or admin notes.'),
     )
     template = models.TextField(
-        help_text=_(u'Django template HTML'),
+        help_text=_(u'Django template HTML.'),
     )
-    # TODO Need organization field?
+    organization_id = models.IntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_(u'Organization of template.'),
+    )
     course_key = CourseKeyField(
         max_length=255,
+        null=True,
+        blank=True,
         db_index=True,
     )
     mode = models.CharField(
         max_length=125,
         choices=GeneratedCertificate.MODES,
         default=GeneratedCertificate.MODES.honor,
+        null=True,
+        blank=True,
         help_text=_(u'The course mode for this template.'),
     )
     is_active = models.BooleanField(
-        help_text=_(u'On/Off switch'),
+        help_text=_(u'On/Off switch.'),
         default=False,
     )
 
     class Meta(object):  # pylint: disable=missing-docstring
         get_latest_by = 'created'
+        unique_together = (('organization_id', 'course_key', 'mode'),)
 
 
 @receiver(post_save, sender=GeneratedCertificate)
