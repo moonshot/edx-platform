@@ -121,7 +121,7 @@ class Progress(object):
         subclassing note: implemented in terms of frac().
         '''
         (a, b) = self.frac()
-        return "{0}/{1}".format(a, b)
+        return "{0}/{1}".format(round(a, 2), round(b, 2))
 
     @staticmethod
     def add_counts(a, b):
