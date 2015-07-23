@@ -276,8 +276,17 @@
             @extend %btn-pl-default-base;
           }
         }
-        .custom_instructions div {
-          @include float(left);
+        .custom_instructions {
+          .custom_instruction_div {
+            @include float(left);
+          }
+          .custom_instruction_order_btn {
+            @include float(right);
+          }
+        }
+        .course_name_placeholder {
+          font-weight: 600;
+          color: $m-gray-d3;
         }
       }
 
