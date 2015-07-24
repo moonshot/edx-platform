@@ -722,6 +722,9 @@ class CertificateTemplate(TimeStampedModel):
         default=False,
     )
 
+    def __unicode__(self):
+        return u'%s' % (self.name, )
+
     class Meta(object):  # pylint: disable=missing-docstring
         get_latest_by = 'created'
         unique_together = (('organization_id', 'course_key', 'mode'),)
@@ -741,9 +744,13 @@ class CertificateTemplateAsset(TimeStampedModel):
         help_text=_(u'Description of the asset.'),
     )
     asset = models.FileField(
+        max_length=255,
         upload_to='certificate_template_assets',
         help_text=_(u'Asset file. It could be an image or css file.'),
     )
+
+    def __unicode__(self):
+        return u'%s' % (self.asset.url, )
 
     class Meta(object):  # pylint: disable=missing-docstring
         get_latest_by = 'created'

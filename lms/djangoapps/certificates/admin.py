@@ -8,10 +8,20 @@ from certificates.models import (
     CertificateHtmlViewConfiguration,
     BadgeImageConfiguration,
     CertificateTemplate,
+    CertificateTemplateAsset,
 )
+
+
+class CertificateTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description', 'organization_id', 'course_key', 'mode', 'is_active')
+
+
+class CertificateTemplateAssetAdmin(admin.ModelAdmin):
+    list_display = ('description', '__unicode__')
 
 
 admin.site.register(CertificateGenerationConfiguration)
 admin.site.register(CertificateHtmlViewConfiguration, ConfigurationModelAdmin)
 admin.site.register(BadgeImageConfiguration)
-admin.site.register(CertificateTemplate)
+admin.site.register(CertificateTemplate, CertificateTemplateAdmin)
+admin.site.register(CertificateTemplateAsset, CertificateTemplateAssetAdmin)
