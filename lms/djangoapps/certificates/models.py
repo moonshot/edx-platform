@@ -727,6 +727,28 @@ class CertificateTemplate(TimeStampedModel):
         unique_together = (('organization_id', 'course_key', 'mode'),)
 
 
+class CertificateTemplateAsset(TimeStampedModel):
+    """A set of assets to be used in custom web certificate templates.
+
+    This model stores assets used in custom web certificate templates
+    such as image, css files.
+
+    """
+    description = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text=_(u'Description of the asset.'),
+    )
+    asset = models.FileField(
+        upload_to='certificate_template_assets',
+        help_text=_(u'Asset file. It could be an image or css file.'),
+    )
+
+    class Meta(object):  # pylint: disable=missing-docstring
+        get_latest_by = 'created'
+
+
 @receiver(post_save, sender=GeneratedCertificate)
 #pylint: disable=unused-argument
 def create_badge(sender, instance, **kwargs):
